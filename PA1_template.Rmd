@@ -1,25 +1,97 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
-
+# Reproducible Research: Project 1
 
 ## Loading and preprocessing the data
 
+```{r}
+unzip(zipfile = "activity.zip")
+activitydata <- read.csv("activity.csv")
+```
 
 
-## What is mean total number of steps taken per day?
+## 1. What is mean total number of steps taken per day?
+
+```{r}
+library(ggplot2)
+dailysteps <- tapply(activitydata$steps, activitydata$date, FUN = sum, na.rm = TRUE)
+qplot(dailysteps, binwidth = 1000, xlab = "Number of steps per day", ylab="Number of days")
+```
 
 
+```{r}
+dailymean <- mean(dailysteps, na.rm = TRUE)
+dailymedian <- median(dailysteps, na.rm = TRUE)
+```
 
-## What is the average daily activity pattern?
+* Mean: ```r dailymean```
+* Median:  ```r dailymedian```
 
 
+## 2. What is the average daily activity pattern?
 
-## Imputing missing values
+```{r}
+library(ggplot2)
+dailyaverage <- aggregate(x = list(steps = activitydata$steps), by = list(interval = activitydata$interval), 
+    FUN = mean, na.rm = TRUE)
+ggplot(data = dailyaverage, aes(x = interval, y = steps)) + geom_line() + xlab("5-minute interval") + 
+    ylab("Averabe number of steps")
+```
 
 
+```{r}
+moststepinterval <- dailyaverage[which.max(dailyaverage$steps), ]
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+
+* Most Steps at: ```r moststepinterval```
+
+## 3. Imputing missing values
+
+```{r}
+nummissing <- is.na(activitydata$steps)
+```
+
+* Number of missing values: ```r nummissing```
+
+
+Fill Strategy: Use mean value for 5-minute interval.
+
+
+```{r}
+install.packages("Hmisc")
+library(Hmisc)
+activitydataImputed <- activitydata
+activitydataImputed$steps <- impute(activitydata$steps, fun=mean)
+imputeddailysteps <- tapply(activitydataImputed$steps, activitydataImputed$date, sum)
+```
+Histogram using updated data with imputed values
+
+
+```{r}
+qplot(imputeddailysteps, xlab='Steps per day (Imputed)', ylab='Frequency using binwidth 500', binwidth=500)
+```
+
+
+```r
+meanimputed <- mean(imputeddailysteps)
+medianimputed <- median(imputeddailysteps)
+```
+
+* Mean (Imputed): ```r meanimputed```
+* Median (Imputed):  ```r medianimputed```
+
+
+## 4. Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+imputeddailysteps$day.type <-  ifelse(as.POSIXlt(imputeddailysteps$date)$wday %in% c(0,6), 'weekend', 'weekday')
+```
+
+
+```{r}
+avgimputeddailysteps <- aggregate(steps ~ interval + dateType, data=imputeddailysteps, mean)
+ggplot(avgimputeddailysteps, aes(interval, steps)) + 
+    geom_line() + 
+    facet_grid(day.type ~ .) +
+    xlab("5-minute interval") + 
+    ylab("Avarage number of steps")
+```
